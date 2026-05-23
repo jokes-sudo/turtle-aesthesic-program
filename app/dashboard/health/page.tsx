@@ -12,6 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AIChat } from "@/components/shared/ai-chat";
 import { AppleHealthImport } from "@/components/shared/apple-health-import";
+import { ShortcutSetup } from "@/components/shared/shortcut-setup";
+import { LiveBadge } from "@/components/shared/live-badge";
+import { useRealtimeAH } from "@/hooks/use-realtime-ah";
 import { AH } from "@/lib/apple-health";
 
 type AHRow = { value: number | null; unit: string | null; start_date: string };
@@ -93,6 +96,8 @@ export default function HealthPage() {
     restingHR.reload(); sleep.reload(); ahCalories.reload(); ahProtein.reload();
   }
 
+  const isLive = useRealtimeAH(reloadAll);
+
   // Derived stats
   const latestWeight = weight.data.at(-1);
   const latestBF = bodyFat.data.at(-1);
@@ -116,10 +121,14 @@ export default function HealthPage() {
           <div className="flex items-center gap-2 mb-0.5">
             <Heart className="h-4 w-4 text-rose-400" />
             <h1 className="text-lg font-semibold">Health</h1>
+            {isLive && <LiveBadge active />}
           </div>
           <p className="text-xs text-muted-foreground">Synced from Apple Health</p>
         </div>
-        <AppleHealthImport onImported={reloadAll} />
+        <div className="flex gap-2 flex-wrap justify-end">
+          <ShortcutSetup />
+          <AppleHealthImport onImported={reloadAll} />
+        </div>
       </div>
 
       {!hasAH && (

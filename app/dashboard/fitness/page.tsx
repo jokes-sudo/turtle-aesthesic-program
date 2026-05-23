@@ -13,6 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { AIChat } from "@/components/shared/ai-chat";
 import { AppleHealthImport } from "@/components/shared/apple-health-import";
+import { ShortcutSetup } from "@/components/shared/shortcut-setup";
+import { LiveBadge } from "@/components/shared/live-badge";
+import { useRealtimeAH } from "@/hooks/use-realtime-ah";
 import { AH, WORKOUT_PREFIX, workoutLabel } from "@/lib/apple-health";
 
 type AHRow = { value: number | null; unit: string | null; start_date: string; end_date?: string | null };
@@ -120,6 +123,8 @@ export default function FitnessPage() {
     steps.reload(); calories.reload(); distance.reload(); workouts.reload();
   }
 
+  const isLive = useRealtimeAH(reloadAll);
+
   // Derived
   const totalSteps7d = steps.data.slice(-7).reduce((s, r) => s + (r.sum ?? r.value ?? 0), 0);
   const totalCal7d   = calories.data.slice(-7).reduce((s, r) => s + (r.sum ?? r.value ?? 0), 0);
@@ -146,10 +151,14 @@ export default function FitnessPage() {
           <div className="flex items-center gap-2 mb-0.5">
             <Zap className="h-4 w-4 text-amber-400" />
             <h1 className="text-lg font-semibold">Fitness</h1>
+            {isLive && <LiveBadge active />}
           </div>
           <p className="text-xs text-muted-foreground">Activity &amp; workouts from Apple Health</p>
         </div>
-        <AppleHealthImport onImported={reloadAll} />
+        <div className="flex gap-2 flex-wrap justify-end">
+          <ShortcutSetup />
+          <AppleHealthImport onImported={reloadAll} />
+        </div>
       </div>
 
       {!hasAH && (

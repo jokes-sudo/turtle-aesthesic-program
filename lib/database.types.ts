@@ -76,6 +76,11 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["todos"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["todos"]["Insert"]>;
       };
+      settings: {
+        Row: { key: string; value: string; updated_at: string };
+        Insert: { key: string; value: string };
+        Update: Partial<{ value: string }>;
+      };
       apple_health_records: {
         Row: {
           id: string;
