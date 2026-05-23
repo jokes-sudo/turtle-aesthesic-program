@@ -1,81 +1,162 @@
-import { Activity, Dumbbell, Apple, Moon, CheckSquare, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
+"use client";
 
-const sections = [
-  {
-    href: "/dashboard/health",
-    icon: Activity,
-    title: "Health Metrics",
-    description: "Track weight, BMI, body fat %, and measurements",
-    color: "text-emerald-400",
-    bg: "bg-emerald-400/10",
-  },
-  {
-    href: "/dashboard/gym",
-    icon: Dumbbell,
-    title: "Gym Progress",
-    description: "Log workouts, track PRs, and monitor volume",
-    color: "text-orange-400",
-    bg: "bg-orange-400/10",
-  },
-  {
-    href: "/dashboard/nutrition",
-    icon: Apple,
-    title: "Nutrition",
-    description: "Monitor calories, macros, and meal patterns",
-    color: "text-rose-400",
-    bg: "bg-rose-400/10",
-  },
-  {
-    href: "/dashboard/sleep",
-    icon: Moon,
-    title: "Sleep & Recovery",
-    description: "Track sleep duration, quality, and recovery",
-    color: "text-indigo-400",
-    bg: "bg-indigo-400/10",
-  },
-  {
-    href: "/dashboard/todos",
-    icon: CheckSquare,
-    title: "To-Do List",
-    description: "Manage tasks, priorities, and deadlines",
-    color: "text-sky-400",
-    bg: "bg-sky-400/10",
-  },
-];
+import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { Sun, Footprints, Flame, Heart, Moon, Scale, Apple } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { AppleHealthImport } from "@/components/shared/apple-health-import";
+import { AIChat } from "@/components/shared/ai-chat";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AH } from "@/lib/apple-health";
 
-export default function DashboardPage() {
+interface AHRow { record_type: string; value: number | null; unit: string | null; start_date: string }
+
+interface TodayStats {
+  steps: number;
+  activeCal: number;
+  latestHR: number | null;
+  sleepHrs: number | null;
+  latestWeight: number | null;
+  weightUnit: string;
+}
+
+function StatCard({ icon: Icon, label, value, unit, color }: {
+  icon: React.ElementType; label: string; value: string | number | null; unit?: string; color: string;
+}) {
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <TrendingUp className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-semibold">Overview</h1>
+    <Card>
+      <CardContent className="pt-4 pb-4">
+        <div className={`inline-flex h-8 w-8 rounded-lg items-center justify-center mb-2 ${color}`}>
+          <Icon className="h-4 w-4" />
         </div>
-        <p className="text-muted-foreground text-sm">
-          Track your health, fitness, and productivity — all in one place with AI-powered insights.
-        </p>
+        <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+        <div className="flex items-baseline gap-1">
+          <span className="text-xl font-semibold">{value ?? "—"}</span>
+          {unit && value !== null && <span className="text-xs text-muted-foreground">{unit}</span>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function TodayPage() {
+  const [stats, setStats] = useState<TodayStats>({
+    steps: 0, activeCal: 0, latestHR: null, sleepHrs: null, latestWeight: null, weightUnit: "kg",
+  });
+  const [hasData, setHasData] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  async function loadStats() {
+    try {
+      const res = await fetch("/api/apple-health/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          types: [AH.STEPS, AH.ACTIVE_CAL, AH.HEART_RATE, AH.SLEEP, AH.WEIGHT],
+          days: 2,
+        }),
+      });
+      if (!res.ok) { setLoaded(true); return; }
+      const rows: AHRow[] = await res.json();
+      if (!rows.length) { setLoaded(true); return; }
+
+      setHasData(true);
+      const today = format(new Date(), "yyyy-MM-dd");
+
+      const todayRows = (type: string) =>
+        rows.filter((r) => r.record_type === type && r.start_date.startsWith(today));
+      const allRows = (type: string) => rows.filter((r) => r.record_type === type);
+
+      const steps = todayRows(AH.STEPS).reduce((s, r) => s + (r.value ?? 0), 0);
+      const activeCal = todayRows(AH.ACTIVE_CAL).reduce((s, r) => s + (r.value ?? 0), 0);
+      const hrRows = allRows(AH.HEART_RATE);
+      const latestHR = hrRows.length ? hrRows[hrRows.length - 1].value : null;
+      const sleepRows = allRows(AH.SLEEP);
+      const sleepHrs = sleepRows.length
+        ? Math.round(sleepRows.reduce((s, r) => s + (r.value ?? 0), 0) * 10) / 10
+        : null;
+      const weightRows = allRows(AH.WEIGHT);
+      const latestWeight = weightRows.length ? weightRows[weightRows.length - 1].value : null;
+      const weightUnit = weightRows[0]?.unit ?? "kg";
+
+      setStats({
+        steps: Math.round(steps),
+        activeCal: Math.round(activeCal),
+        latestHR: latestHR ? Math.round(latestHR) : null,
+        sleepHrs,
+        latestWeight: latestWeight ? Math.round(latestWeight * 10) / 10 : null,
+        weightUnit,
+      });
+    } catch {
+      // Supabase not configured yet
+    } finally {
+      setLoaded(true);
+    }
+  }
+
+  useEffect(() => { loadStats(); }, []);
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const contextData = hasData
+    ? `Today's stats — Steps: ${stats.steps}, Active calories: ${stats.activeCal} kcal, Heart rate: ${stats.latestHR ?? "N/A"} bpm, Last sleep: ${stats.sleepHrs ?? "N/A"}h, Latest weight: ${stats.latestWeight ?? "N/A"}${stats.weightUnit}.`
+    : "No Apple Health data imported yet.";
+
+  return (
+    <div className="p-5 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <Sun className="h-4 w-4 text-amber-400" />
+            <h1 className="text-lg font-semibold">{greeting()}</h1>
+          </div>
+          <p className="text-xs text-muted-foreground">{format(new Date(), "EEEE, MMMM d")}</p>
+        </div>
+        <AppleHealthImport onImported={loadStats} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {sections.map(({ href, icon: Icon, title, description, color, bg }) => (
-          <Link key={href} href={href}>
-            <Card className="h-full hover:border-primary/40 transition-colors cursor-pointer group">
-              <CardHeader className="pb-3">
-                <div className={`inline-flex w-10 h-10 rounded-lg ${bg} items-center justify-center mb-2`}>
-                  <Icon className={`h-5 w-5 ${color}`} />
-                </div>
-                <CardTitle className="text-base group-hover:text-primary transition-colors">{title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{description}</p>
-                <p className="text-xs text-primary mt-3 font-medium">AI assistant included →</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {/* Stats grid */}
+      {loaded && !hasData && (
+        <div className="text-center py-10 text-muted-foreground">
+          <Apple className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium">No Apple Health data yet</p>
+          <p className="text-xs mt-1">Tap &quot;Import Apple Health&quot; to sync your iPhone data</p>
+        </div>
+      )}
+
+      {hasData && (
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <StatCard icon={Footprints} label="Steps Today"   value={stats.steps.toLocaleString()}          unit="steps"        color="bg-sky-400/10 text-sky-400"     />
+          <StatCard icon={Flame}      label="Active Cal."   value={stats.activeCal.toLocaleString()}       unit="kcal"         color="bg-orange-400/10 text-orange-400"/>
+          <StatCard icon={Heart}      label="Heart Rate"    value={stats.latestHR}                         unit="bpm"          color="bg-rose-400/10 text-rose-400"   />
+          <StatCard icon={Moon}       label="Last Sleep"    value={stats.sleepHrs}                         unit="hrs"          color="bg-indigo-400/10 text-indigo-400"/>
+          <StatCard icon={Scale}      label="Weight"        value={stats.latestWeight}                     unit={stats.weightUnit} color="bg-emerald-400/10 text-emerald-400" />
+        </div>
+      )}
+
+      {/* AI assistant */}
+      <Tabs defaultValue="ai">
+        <TabsList className="mb-4">
+          <TabsTrigger value="ai">AI Assistant</TabsTrigger>
+        </TabsList>
+        <TabsContent value="ai">
+          <Card>
+            <CardContent className="pt-5 h-80 flex flex-col">
+              <AIChat
+                section="health"
+                placeholder="Ask anything about your health today…"
+                contextData={contextData}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

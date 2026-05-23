@@ -100,7 +100,7 @@ export default function TodosPage() {
   const contextData = `Total tasks: ${todos.length}. Active: ${active.length}. Completed: ${done.length}. High priority pending: ${highPriority.map((t) => t.title).join(", ") || "None"}. Categories: ${[...new Set(todos.map((t) => t.category).filter(Boolean))].join(", ") || "None"}.`;
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-5 max-w-2xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">

@@ -76,6 +76,20 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["todos"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["todos"]["Insert"]>;
       };
+      apple_health_records: {
+        Row: {
+          id: string;
+          created_at: string;
+          record_type: string;
+          value: number | null;
+          unit: string | null;
+          start_date: string;
+          end_date: string | null;
+          source_name: string | null;
+        };
+        Insert: Omit<Database["public"]["Tables"]["apple_health_records"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["apple_health_records"]["Insert"]>;
+      };
     };
   };
 }
