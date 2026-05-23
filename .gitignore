@@ -1,0 +1,22 @@
+# Next.js
+.next/
+out/
+node_modules/
+
+# Env
+.env.local
+.env.*.local
+
+# Build
+build/
+dist/
+
+# Debug
+npm-debug.log*
+
+# Editor
+.DS_Store
+*.swp
+
+# TypeScript
+tsconfig.tsbuildinfo
